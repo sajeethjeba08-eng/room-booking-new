@@ -6,9 +6,14 @@ import RoomList from './components/RoomList';
 import RoomDetail from './components/RoomDetail';
 import BookingConfirmation from './components/BookingConfirmation';
 import { searchRooms } from './services/roomService';
+import { createBooking } from './services/bookingService';
+import { useAuth } from './context/AuthContext';
 import { Room, SearchParams, AppView, BookingDetails } from './types';
 
 const MainApp: React.FC = () => {
+  // Auth context
+  const { user, userData } = useAuth();
+
   // State for Navigation (Simple View State)
   const [currentView, setCurrentView] = useState<AppView>(AppView.HOME);
 
@@ -23,6 +28,7 @@ const MainApp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
   const [bookingDetails, setBookingDetails] = useState<BookingDetails | null>(null);
+  const [bookingError, setBookingError] = useState<string | null>(null);
 
   // Handlers
   const handleSearch = async (params: SearchParams) => {
@@ -49,17 +55,38 @@ const MainApp: React.FC = () => {
     window.scrollTo(0, 0);
   };
 
-  const handleBookNow = (room: Room) => {
-    // Logic for booking (mock)
-    const details: BookingDetails = {
-      room,
-      searchParams,
-      finalPrice: room.discountedPrice,
-      totalSavings: room.originalPrice - room.discountedPrice
-    };
-    setBookingDetails(details);
-    setCurrentView(AppView.CONFIRMATION);
-    window.scrollTo(0, 0);
+  const handleBookNow = async (room: Room) => {
+    setLoading(true);
+    setBookingError(null);
+
+    try {
+      // Save booking to Firestore
+      const booking = await createBooking(
+        user?.uid || '',
+        user?.email || '',
+        userData?.name || 'Guest',
+        room,
+        searchParams
+      );
+
+      // Create booking details with Firestore reference
+      const details: BookingDetails = {
+        room,
+        searchParams,
+        finalPrice: room.discountedPrice,
+        totalSavings: room.originalPrice - room.discountedPrice,
+        bookingRef: booking.bookingRef
+      };
+
+      setBookingDetails(details);
+      setCurrentView(AppView.CONFIRMATION);
+      window.scrollTo(0, 0);
+    } catch (error) {
+      console.error("Booking failed:", error);
+      setBookingError('Failed to complete booking. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGoHome = () => {

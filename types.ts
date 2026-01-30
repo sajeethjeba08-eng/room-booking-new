@@ -32,4 +32,5 @@ export interface BookingDetails {
   searchParams: SearchParams;
   totalSavings: number;
   finalPrice: number;
+  bookingRef?: string; // Firestore booking reference
 }
